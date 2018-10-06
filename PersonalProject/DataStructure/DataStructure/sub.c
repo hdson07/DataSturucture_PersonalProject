@@ -54,7 +54,9 @@ long get_offset(char *);
 void serch_member(void);
 void delete_member(void);
 int set_delete(char *);
+
 void indexing(void);
+
 int main(void) {
     char in, quit = FALSE;//종료하지 않겠다
     while (quit != TRUE) //참일동안 수행해라
@@ -99,6 +101,29 @@ int main(void) {
         
     }
     return 0;
+}
+void init_file(void) {
+    DFH dfh = { "MAG", "0.9", 0 };
+    FILE *fp;
+    dfh.version[3] = 0x1a;//파일의 끝인 EOF (26값=NULL)
+    fp = fopen(datafile, "wb");
+    if (fp == NULL) {//파일 열기가 실패//
+        printf("데이터 파일(%s) 열기 실패!!\n", datafile);
+        exit(1);
+    }
+    fwrite(&dfh, sizeof(DFH), 1, fp);
+    //fwrite, fread : 이진파일의 입출력
+    fclose(fp);
+    fp = fopen(idxfile, "wb");//w(wrinte) 모드로 열어야 파일이 생성
+    if (fp == NULL) {
+        printf("데이터파일(%s) 열기 실패!!\n", idxfile);
+        exit(1);
+    }
+    fclose(fp);
+    printf("파일생성 완료!!\n");
+    system("pause");
+    return;
+    
 }
 
 void indexing(void) {
