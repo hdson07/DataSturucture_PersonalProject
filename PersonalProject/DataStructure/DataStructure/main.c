@@ -8,8 +8,8 @@
 
 #define TRUE 1
 #define FALSE 0
-
-#define MaxAttraction 25
+#define infinite 1000000
+#define MaxAttraction 11
 
 typedef struct FILE_HEADER {//데이터 파일의 헤더; 헤더의 구조체 //24
     char pname[20];
@@ -35,7 +35,29 @@ typedef struct AttractionData {
     OP_Time WeekDay[7]; //0 : 일 ~ 6:토
 }At_data;
 
-int path[MaxAttraction][MaxAttraction];
+typedef struct Route_data{
+    At_data attraction;
+    int arrival_time;
+    int departure_time;
+    int date;
+    int wanna_no;
+}Route;
+
+int top=-1;
+Route stack_route[10];
+
+int path[MaxAttraction][MaxAttraction]=
+{   infinite,30,30,30,30,30,40,40,120,30,40,
+    30,infinite,10,15,40,30,40,30,140,40,45,
+    30,10,infinite,10,30,30,40,40,180,60,45,
+    30,15,10,infinite,30,30,40,40,160,50,50,
+    30,40,30,30,infinite,10,50,50,150,70,30,
+    30,30,30,30,10,infinite,40,40,150,60,40,
+    40,40,40,40,50,40,infinite,10,160,30,60,
+    40,30,40,40,50,40,10,infinite,160,20,60,
+    120,140,180,160,150,150,160,160,infinite,150,180,
+    30,40,60,50,70,60,30,20,150,infinite,150,
+    40,45,45,50,30,40,60,60,180,140,infinite};
 
 char *datafile = "attraction.dat"; //15바이트
 char *idxfile = "attraction.idx";
@@ -49,7 +71,7 @@ void list_attraction(void);
 long get_count(void);
 void display_member(At_data *a);
 void init_file(void);
-int saveTime(int intime){return(intime/100*60+intime%100);};
+int saveTime(int intime){return((intime/100)*60+intime%100);};
 void showTime(int intime){printf("%d:%d",intime/60,intime%60);};
 void show_attraction(void);
 long fbin_search(int key, long n, FILE* fp);
@@ -58,6 +80,12 @@ int set_delete(int attractionNo);
 void delete_attraction(void);
 int dayofweek(int);
 void play_program(void);
+int stack_empty(void);
+int stack_full(void);
+void push(Route x);
+void show_Date(int date);
+Route pop(void);
+
 
 int main(){
     char in, quit = FALSE;//종료하지 않겠다
@@ -108,11 +136,11 @@ void play_program(){
     //data_setting
     At_data wanna[10];
     At_data a;
-    int i=0;
+    int At_count=0;
     int attractionNo;
     int found;
     printf("[가고싶은 관관지 : 최대 10 , 다 입력했을 경우 0입력\n");
-    while(i<10){
+    while(At_count<10){
         printf("가고싶은 관광지 번호를 입력하시오  : ");
         scanf("%d%*c", &attractionNo);
         if(attractionNo == 0)
@@ -124,19 +152,19 @@ void play_program(){
             system("pause");
             return;
         }
-        wanna[i]=a;
-         i++;
+        wanna[At_count]=a;
+        At_count++;
     }
-    int play_path[i][i];
+    int path_setting[At_count][At_count];
     printf("=========가고싶은 관광지 목록=========\n");
-    for(int j=0;j<i;j++){
+    for(int j=0;j<At_count;j++){
         printf("관광지 번호 : %d 관광지 이름 : %s\n",wanna[j].no,wanna[j].Aname);
-        for(int k=0;k<i;k++){
-            play_path[j][k]=path[wanna[j].no][wanna[k].no];
+        for(int k=0;k<At_count;k++){
+            path_setting[j][k]=path[wanna[j].no][wanna[k].no];
         }
-            
+        
     }
-    int day,time,startTime,startDay,finishTime,finishDay;
+    int day,time,startTime,startDay,finishTime,finishDay,playTime,playDay,preTime,preDay;
     printf("여행 시작 일자를 입력하시오 Ex. 20171005 \t :");
     scanf("%d%*c",&day);
     startDay=dayofweek(day);
@@ -151,19 +179,124 @@ void play_program(){
     finishTime=saveTime(time);
     
     //play
+    playTime = preTime= startTime;
+    playDay = preDay= startDay;
+    int *play_path[At_count];
+    At_data *route[At_count];
+    int routeNum[At_count];
+    int date[At_count];
+    int count=0,number=0,next_number=0,pre_number=0;
+    int callback=FALSE;
+    while(count<At_count){
+        if(!callback){
+            pre_number=number;
+            number=next_number;
+            preDay=playDay;
+            preTime=playTime;
+            route[count]=&wanna[next_number];
+            date[count]=playDay;
+            if(count+1==At_count)break;
+            for(int i=0;i<At_count;i++)
+                if(((playTime>= route[count]->WeekDay[playDay].openTime)
+                    &&(playTime<=route[count]->WeekDay[playDay].closeTime)))//관광지가 운영중이 아니거나
+                  
+                    play_path[i]=&path_setting[next_number][i];
+                else play_path[i]=&path[0][0];
+            for(int i=0;i<count;i++){
+                play_path[routeNum[i]]=&path[0][0];
+            }
+            for(int i=0;i<At_count;i++)
+                if(*play_path[next_number]>=*play_path[i]&&*play_path[i]!=infinite)
+                    next_number=i;
+            if(*play_path[next_number]==infinite){
+                count--;
+                playTime=preTime;
+                playDay=preDay;
+                callback =TRUE;
+            }
+            else{
+                playTime=playTime+route[count]->StayTime+*play_path[next_number];
+                if(playTime>finishTime-150){
+                    playTime=startTime;
+                    playDay=(playDay+1)%7;
+                }
+                routeNum[count]=number;
+                count++;
+                callback=FALSE;
+            }
+        }
+        //뒤로 돌아갔을 경우
+        else{
+            number=pre_number;
+            for(int i=0;i<At_count;i++)
+                if(((playTime>= route[count]->WeekDay[playDay].openTime)
+                    &&(playTime<=route[count]->WeekDay[playDay].closeTime)))//관광지가 운영중이 아니거나
+                    play_path[i]=&path_setting[number][i];
+                else play_path[i]=&path[0][0];
+            for(int i=0;i<count;i++){
+                play_path[routeNum[i]]=&path[0][0];
+            }
+            play_path[next_number]=&path[0][0];
+            for(int i=0;i<At_count;i++)
+                if(play_path[pre_number]>=play_path[i]&&*play_path[i]!=infinite)
+                    next_number=i;
+                playTime=playTime+route[count]->StayTime+*play_path[next_number];
+                if(playTime>finishTime-180){
+                    playTime=startTime;
+                    playDay=(playDay+1)%7;
+                }
+                routeNum[count]=number;
+                 count++;
+                callback=FALSE;
+            }
+        }
+    printf("[경로 추천] \n");
+    for(int i=0;i<At_count;i++){
+        show_Date(date[i]);
+        printf("\t %d) [%d] %s\n",i+1,route[i]->no,route[i]->Aname);
+    }
     
-    
-    
-    
-}//프로그램 실행
+}
 
+void show_Date(int date){
+    switch (date) {
+        case 0:
+            printf("(월요일)\t");
+            break;
+        case 1:
+            printf("(화요일)\t");
+            break;
+        case 2:
+            printf("(수요일)\t");
+            break;
+        case 3:
+            printf("(목요일)\t");
+            break;
+        case 4:
+            printf("(금요일)\t");
+            break;
+        case 5:
+            printf("(토요일)\t");
+            break;
+        case 6:
+            printf("(일요일)\n");
+            break;
+            
+    }
+}
+
+int stack_full() {
+    if (top >= 9)
+        return TRUE;
+    else return FALSE;
+}
 int dayofweek(int day){   int y, m, d;
     y=day/10000;
     m=(day%10000)/100;
     d=(day%10000)%100;
     static int t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
     y -= m < 3;
-    return ((y + y/4 - y/100 + y/400 + t[m-1] + d) % 7);
+    return ((y + y/4 - y/100 + y/400 + t[m-1] + d-1) % 7);
 }//20171006으로 입력한 정수를 날짜로 변환
 
 int comp(FILE *fp, long i, long j) {//if (comp(fp,left,i)>0) 있으니 반환값이 있어야 된다. strcmp : 문자열 비교함수
@@ -311,7 +444,7 @@ int find_attraction(int attractionNo, At_data *a) {
     fp = fopen(datafile, "rb");
     if (fp == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return FALSE;
     }
     fseek(fp, idx.offset, 0);
     fread(a, sizeof(At_data), 1, fp);
@@ -348,7 +481,7 @@ void show_attraction(){
 
 void display_member(At_data *a) {
     printf("> 번 호   : [%d]", a->no);
-    printf("\t 회원ID  : %s \n", a->Aname);
+    printf("\t 관광지 이름  : %s \n", a->Aname);
     return;
 }
 
@@ -358,7 +491,7 @@ long get_count(void) {
     fp = fopen(datafile, "rb");
     if (fp == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return FALSE;
     }
     fseek(fp, 0L, 0);//파일을 탐색하겠다. SEEK_SET 0처음부터,  SEEK_CUR 1, SEEK_END 2 끝에서
     fread(&dfh, sizeof(DFH), 1, fp);
@@ -374,12 +507,12 @@ void list_attraction(void) {
     fpi = fopen(idxfile, "rb"); // 파일열기 파일열때 단순히 열지말고 열린거 확인할 수 있도록 이것처럼 열기
     if (fpi == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return;
     }
     fpd = fopen(datafile, "rb");
     if (fpd == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return;
     }
     printf("[여]\t\t[행]\t\t[지]\t\t[목]\t\t\[록]\n");
     nrec = get_count();
@@ -408,7 +541,7 @@ void init_file(void) {
     fp = fopen(datafile, "wb");
     if (fp == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return;
     }
     fwrite(&dfh, sizeof(DFH), 1, fp);
     //fwrite, fread : 이진파일의 입출력
@@ -433,7 +566,7 @@ void save_data(At_data* a) {
     fp = fopen(datafile, "rb+");
     if (fp == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", datafile);
-        exit(1);
+        return;
     }
     fseek(fp, 0L, 0);//파일을 탐색하겠다. SEEK_SET 0처음부터,  SEEK_CUR 1, SEEK_END 2 끝에서
     fread(&dfh, sizeof(DFH), 1, fp);
@@ -452,7 +585,7 @@ void save_data(At_data* a) {
     fp = fopen(idxfile, "rb+");
     if (fp == NULL) {//파일 열기가 실패//
         printf("데이터 파일(%s) 열기 실패!!\n", idxfile);
-        exit(1);
+        return;
     }
     fseek(fp, sizeof(I_data)*(dfh.recent - 1), 0);
     fwrite(&idx, sizeof(I_data), 1, fp);
@@ -516,7 +649,7 @@ void insert_attraction(void) {
     printf("\n\t > 일요일 마감시간 : ");
     scanf("%d%*c", &intime);
     a.WeekDay[6].closeTime=saveTime(intime);
-        printf("\n s]저장, m]메인");
+    printf("\n s]저장, m]메인");
     
     char sel, del[10];
     scanf("%c", &sel);
@@ -532,6 +665,7 @@ void insert_attraction(void) {
 void menu(void) {
     printf("I) 관광지 등록\n");
     printf("S) 관광지 세부정보 보기\n");
+    printf("N) 관광지 데이터 초기화\n");
     printf("D) 관광지 삭제\n");
     printf("P) 프로그램 시작\n");
     printf("Q) 종료\n \n");
