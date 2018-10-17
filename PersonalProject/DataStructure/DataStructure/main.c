@@ -35,17 +35,6 @@ typedef struct AttractionData {
     OP_Time WeekDay[7]; //0 : 일 ~ 6:토
 }At_data;
 
-typedef struct Route_data{
-    At_data attraction;
-    int arrival_time;
-    int departure_time;
-    int date;
-    int wanna_no;
-}Route;
-
-int top=-1;
-Route stack_route[10];
-
 int path[MaxAttraction][MaxAttraction]=
 {   infinite,30,30,30,30,30,40,40,120,30,40,
     30,infinite,10,15,40,30,40,30,140,40,45,
@@ -61,30 +50,37 @@ int path[MaxAttraction][MaxAttraction]=
 
 char *datafile = "attraction.dat"; //15바이트
 char *idxfile = "attraction.idx";
+
 void printTitle(void);
 void menu(void);
+
+long get_count(void);
+void list_attraction(void);
+void display_member(At_data *a);
+
+void init_file(void);
+
+void insert_attraction(void);
+
 void swap(FILE * fp, long i, long j);
 void qSort(FILE *fp, long left, long right);
 int comp(FILE *fp, long i, long j);
-void insert_attraction(void);
-void list_attraction(void);
-long get_count(void);
-void display_member(At_data *a);
-void init_file(void);
-int saveTime(int intime){return((intime/100)*60+intime%100);};
-void showTime(int intime){printf("%d:%d",intime/60,intime%60);};
-void show_attraction(void);
+
 long fbin_search(int key, long n, FILE* fp);
 int find_attraction(int attractionNo, At_data *a);
+
 int set_delete(int attractionNo);
 void delete_attraction(void);
+void show_attraction(void);
+
+int saveTime(int intime){return((intime/100)*60+intime%100);};
+void showTime(int intime){printf("%d:%d",intime/60,intime%60);};
+
 int dayofweek(int);
-void play_program(void);
-int stack_empty(void);
-int stack_full(void);
-void push(Route x);
 void show_Date(int date);
-Route pop(void);
+
+void play_program(void);
+
 
 
 int main(){
@@ -125,11 +121,7 @@ int main(){
     }
     
     return 0;
-}
-
-
-
-
+}//선택된 메뉴에 따라 함수 진행
 
 void play_program(){
     
@@ -256,7 +248,7 @@ void play_program(){
         printf("\t %d) [%d] %s\n",i+1,route[i]->no,route[i]->Aname);
     }
     
-}
+}//프로그램 진행
 
 void show_Date(int date){
     switch (date) {
@@ -283,13 +275,8 @@ void show_Date(int date){
             break;
             
     }
-}
+}//날짜를 보여준다.
 
-int stack_full() {
-    if (top >= 9)
-        return TRUE;
-    else return FALSE;
-}
 int dayofweek(int day){   int y, m, d;
     y=day/10000;
     m=(day%10000)/100;
